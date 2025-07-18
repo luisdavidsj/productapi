@@ -1,54 +1,74 @@
 package com.example.productapi.service;
 
+import com.example.productapi.dto.ProductMapper;
+import com.example.productapi.dto.ProductRequestDTO;
+import com.example.productapi.dto.ProductResponseDTO;
+import com.example.productapi.model.Category;
 import com.example.productapi.model.Product;
+import com.example.productapi.repository.CategoryRepository;
 import com.example.productapi.repository.ProductRepository;
-
 import jakarta.persistence.criteria.Predicate;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ProductService {
 
-    private final ProductRepository repository;
+    private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
-    public ProductService(ProductRepository repository) {
-        this.repository = repository;
+    public ProductService(ProductRepository productRepository, CategoryRepository categoryRepository) {
+        this.productRepository = productRepository;
+        this.categoryRepository = categoryRepository;
     }
 
-    public List<Product> getAll() {
-        return repository.findAll();
+    public ProductResponseDTO create(ProductRequestDTO dto) {
+        Category category = categoryRepository.findById(dto.categoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+        Product product = ProductMapper.toEntity(dto, category);
+        Product saved = productRepository.save(product);
+        return ProductMapper.toDTO(saved);
     }
 
-    public Optional<Product> getById(Long id) {
-        return repository.findById(id);
+    public List<ProductResponseDTO> findAll() {
+        return productRepository.findAll()
+                .stream()
+                .map(ProductMapper::toDTO)
+                .collect(Collectors.toList());
     }
 
-    public Product create(Product product) {
-        return repository.save(product);
-    }
-
-    public Product update(Long id, Product product) {
-        Product existing = repository.findById(id)
+    public ProductResponseDTO findById(Long id) {
+        Product product = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found"));
-        existing.setName(product.getName());
-        existing.setDescription(product.getDescription());
-        existing.setPrice(product.getPrice());
-        return repository.save(existing);
+        return ProductMapper.toDTO(product);
+    }
+
+    public ProductResponseDTO update(Long id, ProductRequestDTO dto) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+        Category category = categoryRepository.findById(dto.categoryId())
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+
+        product.setName(dto.name());
+        product.setDescription(dto.description());
+        product.setPrice(dto.price());
+        product.setCategory(category);
+
+        Product updated = productRepository.save(product);
+        return ProductMapper.toDTO(updated);
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        productRepository.deleteById(id);
     }
 
     public Page<Product> search(String name, Double minPrice, Double maxPrice, Pageable pageable) {
-    return repository.findAll((root, query, cb) -> {
+    return productRepository.findAll((root, query, cb) -> {
         List<Predicate> predicates = new ArrayList<>();
 
         if (name != null && !name.isBlank()) {

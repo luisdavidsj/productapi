@@ -1,41 +1,52 @@
 package com.example.productapi.service;
 
+import com.example.productapi.dto.CategoryMapper;
+import com.example.productapi.dto.CategoryRequestDTO;
+import com.example.productapi.dto.CategoryResponseDTO;
 import com.example.productapi.model.Category;
 import com.example.productapi.repository.CategoryRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class CategoryService {
 
-    private final CategoryRepository repository;
+    private final CategoryRepository categoryRepository;
 
-    public CategoryService(CategoryRepository repository) {
-        this.repository = repository;
+    public CategoryService(CategoryRepository categoryRepository) {
+        this.categoryRepository = categoryRepository;
     }
 
-    public List<Category> getAll() {
-        return repository.findAll();
+    public CategoryResponseDTO create(CategoryRequestDTO dto) {
+        Category category = CategoryMapper.toEntity(dto);
+        Category saved = categoryRepository.save(category);
+        return CategoryMapper.toDTO(saved);
     }
 
-    public Optional<Category> getById(Long id) {
-        return repository.findById(id);
+    public List<CategoryResponseDTO> findAll() {
+        return categoryRepository.findAll()
+                .stream()
+                .map(CategoryMapper::toDTO)
+                .collect(Collectors.toList());
     }
 
-    public Category create(Category category) {
-        return repository.save(category);
+    public CategoryResponseDTO findById(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+        return CategoryMapper.toDTO(category);
     }
 
-    public Category update(Long id, Category category) {
-        Category existing = repository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Category not found"));
-        existing.setName(category.getName());
-        return repository.save(existing);
+    public CategoryResponseDTO update(Long id, CategoryRequestDTO dto) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Category not found"));
+        category.setName(dto.name());
+        Category updated = categoryRepository.save(category);
+        return CategoryMapper.toDTO(updated);
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        categoryRepository.deleteById(id);
     }
 }
